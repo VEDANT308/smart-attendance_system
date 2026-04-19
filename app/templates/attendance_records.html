@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attendance Records — SmartAttend</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    .filter-bar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .filter-bar input, .filter-bar select {
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      padding: 8px 12px;
+      border-radius: var(--radius);
+      outline: none;
+    }
+    .filter-bar input:focus, .filter-bar select:focus {
+      border-color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-layout">
+  <header class="topbar">
+    <a class="topbar-brand" href="/admin">
+      <div class="brand-dot"></div>
+      SmartAttend
+    </a>
+    <div class="topbar-right">
+      <div class="user-chip">
+        👤 <span class="name">{{ session.name }}</span>
+        <span class="role-badge admin">Admin</span>
+      </div>
+      <a href="/logout" class="btn btn-ghost btn-sm">Sign Out</a>
+    </div>
+  </header>
+
+  <nav class="sidebar">
+    <div class="sidebar-section">
+      <a class="nav-item" href="/admin"><span class="nav-icon">⬅</span> Back to Admin</a>
+      <a class="nav-item active" href="#"><span class="nav-icon">📋</span> Attendance Records</a>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <div class="page-header">
+      <h1 class="page-title">Attendance <span>Records</span></h1>
+      <p class="page-subtitle">All {{ records|length }} attendance records (latest 200)</p>
+    </div>
+
+    <!-- Filter -->
+    <div class="filter-bar">
+      <input type="text" id="search-input" placeholder="Search student or subject..." onkeyup="filterTable()" />
+      <select id="filter-verified" onchange="filterTable()">
+        <option value="">All Status</option>
+        <option value="1">Verified</option>
+        <option value="0">Pending</option>
+      </select>
+      <select id="filter-status" onchange="filterTable()">
+        <option value="">All</option>
+        <option value="present">Present</option>
+        <option value="absent">Absent</option>
+      </select>
+    </div>
+
+    <div class="panel">
+      <div class="overflow-auto">
+        <table class="data-table" id="records-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Student</th>
+              <th>Subject</th>
+              <th>Code</th>
+              <th>Date</th>
+              <th>Time</th>
+              <th>Status</th>
+              <th>Verified</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in records %}
+            <tr>
+              <td class="text-muted">{{ loop.index }}</td>
+              <td>{{ r.student_name }}</td>
+              <td>{{ r.subject_name }}</td>
+              <td><span class="text-accent mono">{{ r.course_code }}</span></td>
+              <td class="text-muted">{{ r.date }}</td>
+              <td class="text-muted">{{ r.time }}</td>
+              <td>
+                <span class="badge badge-{{ r.status }}">{{ r.status }}</span>
+              </td>
+              <td>
+                {% if r.verified %}
+                  <span class="badge badge-verified">✓ Verified</span>
+                {% else %}
+                  <span class="badge badge-pending">⏳ Pending</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="8">
+              <div class="empty-state">
+                <div class="empty-icon">📋</div>
+                <div class="empty-text">No attendance records found.</div>
+              </div>
+            </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  function filterTable() {
+    const search   = document.getElementById('search-input').value.toLowerCase();
+    const verified = document.getElementById('filter-verified').value;
+    const status   = document.getElementById('filter-status').value;
+    const rows     = document.querySelectorAll('#records-table tbody tr');
+
+    rows.forEach(row => {
+      const text     = row.innerText.toLowerCase();
+      const verBadge = row.querySelector('td:last-child')?.innerText || '';
+      const stBadge  = row.querySelector('td:nth-child(7)')?.innerText.trim().toLowerCase() || '';
+
+      const matchSearch   = !search || text.includes(search);
+      const matchVerified = !verified || (verified === '1' ? verBadge.includes('Verified') : verBadge.includes('Pending'));
+      const matchStatus   = !status || stBadge === status;
+
+      row.style.display = (matchSearch && matchVerified && matchStatus) ? '' : 'none';
+    });
+  }
+</script>
+
+</body>
+</html>

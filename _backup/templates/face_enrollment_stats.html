@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Face Enrollment Statistics — SmartAttend</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+
+<body>
+
+    <div class="app-layout">
+        <header class="topbar">
+            <a class="topbar-brand" href="/admin">
+                <div class="brand-dot"></div>
+                SmartAttend
+            </a>
+            <div class="topbar-right">
+                <div class="user-chip">
+                    👤 <span class="name">{{ session.name }}</span>
+                    <span class="role-badge admin">Admin</span>
+                </div>
+                <a href="/logout" class="btn btn-ghost btn-sm">Sign Out</a>
+            </div>
+        </header>
+
+        <nav class="sidebar">
+            <div class="sidebar-section">
+                <a class="nav-item" href="/admin"><span class="nav-icon">⬅</span> Back to Admin</a>
+                <a class="nav-item active" href="#"><span class="nav-icon">👤</span> Face Enrollment Stats</a>
+            </div>
+        </nav>
+
+        <main class="main-content">
+            <div class="page-header">
+                <h1 class="page-title">Face Enrollment <span>Statistics</span></h1>
+                <p class="page-subtitle">Track student face recognition enrollment status</p>
+            </div>
+
+            <!-- Summary Stats -->
+            <div class="stats-grid">
+                <div class="stat-card green">
+                    <div class="stat-num">{{ stats|selectattr('status', 'equalto', 'enrolled')|list|length }}</div>
+                    <div class="stat-label">Enrolled Students</div>
+                </div>
+                <div class="stat-card orange">
+                    <div class="stat-num">{{ stats|selectattr('status', 'equalto', 'pending')|list|length }}</div>
+                    <div class="stat-label">Pending Enrollment</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-num">{{ stats|length }}</div>
+                    <div class="stat-label">Total Students</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-num">
+                        {% set enrolled = stats|selectattr('status', 'equalto', 'enrolled')|list|length %}
+                        {% set total = stats|length %}
+                        {{ (enrolled / total * 100)|round(0)|int if total > 0 else 0 }}%
+                    </div>
+                    <div class="stat-label">Enrollment Rate</div>
+                </div>
+            </div>
+
+            <!-- Enrollment Table -->
+            <div class="panel">
+                <div class="panel-head">
+                    <span class="panel-title">📋 Student Face Enrollment Status</span>
+                </div>
+                <div class="overflow-auto">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Student Name</th>
+                                <th>Status</th>
+                                <th>Enrolled At</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for stat in stats %}
+                            <tr>
+                                <td class="text-muted">{{ stat.student_id }}</td>
+                                <td>{{ stat.name }}</td>
+                                <td>
+                                    {% if stat.status == 'enrolled' %}
+                                    <span class="badge badge-verified">✓ Enrolled</span>
+                                    {% elif stat.status == 'pending' %}
+                                    <span class="badge badge-pending">⏳ Pending</span>
+                                    {% else %}
+                                    <span class="badge badge-absent">✗ Failed</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-muted">
+                                    {% if stat.enrolled_at %}
+                                    {{ stat.enrolled_at[:10] }}
+                                    {% else %}
+                                    —
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4">
+                                    <div class="empty-state">
+                                        <div class="empty-icon">👤</div>
+                                        <div class="empty-text">No face enrollment data available</div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Enrollment Instructions -->
+            <div class="panel">
+                <div class="panel-head">
+                    <span class="panel-title">📖 How to Enroll</span>
+                </div>
+                <div class="panel-body">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                        <div>
+                            <h3 style="color: var(--accent); margin-bottom: 10px; font-size: 14px;">For Students</h3>
+                            <ol style="padding-left: 20px; color: var(--muted); font-size: 13px;">
+                                <li>Log in to your student dashboard</li>
+                                <li>Click on "Face Enrollment" section</li>
+                                <li>Allow camera access from your browser</li>
+                                <li>Click "Start Camera" button</li>
+                                <li>Capture your face 5 times from different angles</li>
+                                <li>System will process and enroll your face</li>
+                            </ol>
+                        </div>
+
+                        <div>
+                            <h3 style="color: var(--accent); margin-bottom: 10px; font-size: 14px;">Face Recognition
+                                Tips</h3>
+                            <ul style="padding-left: 20px; color: var(--muted); font-size: 13px;">
+                                <li>✓ Good lighting from the front</li>
+                                <li>✓ Face clearly visible and centered</li>
+                                <li>✓ Position 1-2 feet from camera</li>
+                                <li>✓ Remove glasses or accessories</li>
+                                <li>✓ Natural facial expression</li>
+                                <li>✓ Look directly at camera</li>
+                            </ul>
+                        </div>
+
+                        <div>
+                            <h3 style="color: var(--accent); margin-bottom: 10px; font-size: 14px;">For Teachers</h3>
+                            <ol style="padding-left: 20px; color: var(--muted); font-size: 13px;">
+                                <li>Go to "Face Attendance" page</li>
+                                <li>Select the subject/class</li>
+                                <li>Click "Start Camera" to begin</li>
+                                <li>System detects and marks attendance automatically</li>
+                                <li>Click "Stop" when done</li>
+                                <li>Attendance records are saved automatically</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Raspberry Pi Setup Guide -->
+            <div class="panel">
+                <div class="panel-head">
+                    <span class="panel-title">🔧 Raspberry Pi 3 Setup</span>
+                </div>
+                <div class="panel-body">
+                    <div
+                        style="background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 14px; font-family: var(--font-mono); color: var(--muted); font-size: 12px; overflow-x: auto;">
+                        <code>
+# Install required dependencies<br>
+sudo apt-get update<br>
+sudo apt-get install python3-opencv python3-pip<br>
+<br>
+# Install Python packages<br>
+pip3 install face-recognition<br>
+pip3 install flask<br>
+pip3 install numpy<br>
+<br>
+# For Raspberry Pi Camera Module<br>
+pip3 install picamera<br>
+<br>
+# Run the application<br>
+python3 app.py<br>
+          </code>
+                    </div>
+                    <p style="color: var(--muted); font-size: 12px; margin-top: 12px;">
+                        Note: The application uses <strong>HOG (Histogram of Oriented Gradients)</strong> for face
+                        detection on Raspberry Pi to optimize for lower CPU usage. For better accuracy, consider
+                        upgrading to Raspberry Pi 4 or using a GPU accelerator.
+                    </p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+</body>
+
+</html>

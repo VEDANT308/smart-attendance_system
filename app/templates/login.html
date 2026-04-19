@@ -1,0 +1,260 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login — Smart Attendance</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: var(--bg);
+      background-image:
+        radial-gradient(ellipse 80% 60% at 50% -10%, rgba(79,142,247,.12), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 90%, rgba(56,201,168,.08), transparent);
+    }
+
+    .login-wrapper {
+      width: 100%;
+      max-width: 420px;
+      padding: 20px;
+    }
+
+    .login-logo {
+      text-align: center;
+      margin-bottom: 36px;
+    }
+
+    .login-logo-icon {
+      width: 56px;
+      height: 56px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 16px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      margin-bottom: 12px;
+      box-shadow: 0 0 30px rgba(79,142,247,.3);
+    }
+
+    .login-logo h1 {
+      font-family: var(--font-head);
+      font-size: 22px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+    }
+
+    .login-logo p {
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    .login-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      padding: 32px;
+      box-shadow: 0 20px 60px rgba(0,0,0,.5);
+    }
+
+    .login-card h2 {
+      font-family: var(--font-head);
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .login-card .sub {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 28px;
+    }
+
+    .login-field {
+      margin-bottom: 18px;
+    }
+
+    .login-field label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 7px;
+      font-weight: 600;
+    }
+
+    .input-wrap {
+      position: relative;
+    }
+
+    .input-wrap input {
+      width: 100%;
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 14px;
+      padding: 12px 14px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+
+    .input-wrap input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(79,142,247,.15);
+    }
+
+    .login-btn {
+      width: 100%;
+      padding: 13px;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-family: var(--font-head);
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-top: 8px;
+      transition: all 0.15s;
+      letter-spacing: 0.01em;
+    }
+
+    .login-btn:hover {
+      background: #3d7ae0;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(79,142,247,.35);
+    }
+
+    .demo-accounts {
+      margin-top: 24px;
+      padding: 16px;
+      background: var(--bg3);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+
+    .demo-title {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--muted);
+      margin-bottom: 10px;
+      font-weight: 700;
+    }
+
+    .demo-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 5px 0;
+      font-size: 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .demo-row:last-child { border-bottom: none; }
+
+    .demo-email { color: var(--accent); }
+    .demo-pass  { color: var(--muted); }
+
+    .demo-fill {
+      font-size: 10px;
+      color: var(--accent2);
+      cursor: pointer;
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    .error-box {
+      background: rgba(232,84,84,.1);
+      border: 1px solid rgba(232,84,84,.3);
+      color: var(--danger);
+      padding: 11px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-wrapper">
+    <div class="login-logo">
+      <div class="login-logo-icon">🎓</div>
+      <h1>SmartAttend</h1>
+      <p>Classroom Attendance Management System</p>
+    </div>
+
+    <div class="login-card">
+      <h2>Welcome back</h2>
+      <p class="sub">Sign in to access your dashboard</p>
+
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for cat, msg in messages %}
+          <div class="error-box">⚠ {{ msg }}</div>
+        {% endfor %}
+      {% endwith %}
+
+      <form method="POST" action="/login">
+        <div class="login-field">
+          <label>Email Address</label>
+          <div class="input-wrap">
+            <input type="email" name="username" id="email-input"
+                   placeholder="your@email.com" required autocomplete="email" />
+          </div>
+        </div>
+
+        <div class="login-field">
+          <label>Password</label>
+          <div class="input-wrap">
+            <input type="password" name="password" id="pass-input"
+                   placeholder="••••••••" required autocomplete="current-password" />
+          </div>
+        </div>
+
+        <button type="submit" class="login-btn">Sign In →</button>
+      </form>
+
+      <!-- Demo Quick Fill -->
+      <div class="demo-accounts">
+        <div class="demo-title">🔑 Demo Accounts</div>
+        <div class="demo-row">
+          <span class="role-badge admin">Admin</span>
+          <span class="demo-email">admin@school.com</span>
+          <span class="demo-pass">admin123</span>
+          <span class="demo-fill" onclick="fill('admin@school.com','admin123')">Fill</span>
+        </div>
+        <div class="demo-row">
+          <span class="role-badge teacher">Teacher</span>
+          <span class="demo-email">priya@school.com</span>
+          <span class="demo-pass">teacher123</span>
+          <span class="demo-fill" onclick="fill('priya@school.com','teacher123')">Fill</span>
+        </div>
+        <div class="demo-row">
+          <span class="role-badge student">Student</span>
+          <span class="demo-email">aarav@school.com</span>
+          <span class="demo-pass">student123</span>
+          <span class="demo-fill" onclick="fill('aarav@school.com','student123')">Fill</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function fill(email, pwd) {
+      document.getElementById('email-input').value = email;
+      document.getElementById('pass-input').value = pwd;
+    }
+  </script>
+</body>
+</html>

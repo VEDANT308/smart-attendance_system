@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Face Enrollment — SmartAttend</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    .enrollment-wrapper {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+
+    .camera-container {
+      position: relative;
+      background: var(--bg3);
+      border: 2px solid var(--accent);
+      border-radius: 14px;
+      overflow: hidden;
+      margin: 20px 0;
+    }
+
+    #camera-stream {
+      width: 100%;
+      display: block;
+      background: var(--bg2);
+      border-radius: 12px;
+    }
+
+    .control-buttons {
+      display: flex;
+      gap: 10px;
+      margin: 20px 0;
+      flex-wrap: wrap;
+    }
+
+    .btn-large {
+      flex: 1;
+      min-height: 50px;
+      font-size: 16px;
+      padding: 15px 20px;
+    }
+
+    .capture-indicator {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 16px;
+      background: rgba(79,142,247,.15);
+      border-radius: 8px;
+      margin: 10px 0;
+      color: var(--accent);
+      font-size: 13px;
+    }
+
+    .capture-indicator.success {
+      background: rgba(76,175,125,.15);
+      color: var(--success);
+    }
+
+    .capture-indicator.error {
+      background: rgba(232,84,84,.15);
+      color: var(--danger);
+    }
+
+    .enrollment-status {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin: 20px 0;
+      text-align: center;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      margin: 8px 0;
+    }
+
+    .status-pending {
+      background: rgba(245,166,35,.15);
+      color: var(--warn);
+    }
+
+    .status-enrolled {
+      background: rgba(76,175,125,.15);
+      color: var(--success);
+    }
+
+    .status-failed {
+      background: rgba(232,84,84,.15);
+      color: var(--danger);
+    }
+
+    .tips-box {
+      background: rgba(79,142,247,.08);
+      border: 1px solid rgba(79,142,247,.2);
+      border-radius: 10px;
+      padding: 16px;
+      margin: 20px 0;
+    }
+
+    .tips-box h4 {
+      color: var(--accent);
+      margin-bottom: 10px;
+      font-size: 14px;
+    }
+
+    .tips-box ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    .tips-box li {
+      padding: 4px 0;
+      font-size: 13px;
+      color: var(--muted);
+      display: flex;
+      gap: 8px;
+    }
+
+    .tips-box li::before {
+      content: "✓";
+      color: var(--accent);
+      flex-shrink: 0;
+    }
+
+    .capture-count {
+      font-family: var(--font-head);
+      font-size: 24px;
+      color: var(--accent);
+      text-align: center;
+      margin: 10px 0;
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-layout">
+  <header class="topbar">
+    <a class="topbar-brand" href="/student">
+      <div class="brand-dot"></div>
+      SmartAttend
+    </a>
+    <div class="topbar-right">
+      <div class="user-chip">
+        👤 <span class="name">{{ session.name }}</span>
+        <span class="role-badge student">Student</span>
+      </div>
+      <a href="/logout" class="btn btn-ghost btn-sm">Sign Out</a>
+    </div>
+  </header>
+
+  <nav class="sidebar">
+    <div class="sidebar-section">
+      <a class="nav-item" href="/student"><span class="nav-icon">⬅</span> Back to Dashboard</a>
+      <a class="nav-item active" href="#"><span class="nav-icon">👤</span> Face Enrollment</a>
+    </div>
+  </nav>
+
+  <main class="main-content">
+    <div class="enrollment-wrapper">
+      <div class="page-header">
+        <h1 class="page-title">Face <span>Enrollment</span></h1>
+        <p class="page-subtitle">Register your face for automatic attendance marking</p>
+      </div>
+
+      <div class="enrollment-status">
+        <span class="status-badge status-{{ status }}">
+          {% if status == 'enrolled' %}
+            ✓ Face Enrollment Complete
+          {% elif status == 'pending' %}
+            ⏳ Not yet enrolled
+          {% else %}
+            ✗ Enrollment failed
+          {% endif %}
+        </span>
+      </div>
+
+      <div class="tips-box">
+        <h4>📸 Getting Started</h4>
+        <ul>
+          <li>Ensure good lighting from the front</li>
+          <li>Face should be clearly visible</li>
+          <li>Position face in center of camera view</li>
+          <li>Keep about 1-2 feet from camera</li>
+          <li>No glasses or accessories covering face</li>
+        </ul>
+      </div>
+
+      <div class="camera-container">
+        <video id="camera-stream" autoplay playsinline></video>
+      </div>
+
+      <div class="capture-count" id="capture-count" style="display:none">
+        Captured: <span id="count-value">0</span>/5
+      </div>
+
+      <div id="status-message" class="capture-indicator" style="display:none"></div>
+
+      <div class="control-buttons">
+        <button class="btn btn-primary btn-large" id="start-btn">
+          🎥 Start Camera
+        </button>
+        <button class="btn btn-success btn-large" id="capture-btn" style="display:none">
+          📸 Capture Face
+        </button>
+        <button class="btn btn-ghost btn-large" id="reset-btn" style="display:none">
+          🔄 Reset
+        </button>
+      </div>
+
+      {% if status == 'enrolled' %}
+      <div style="text-align: center; margin-top: 20px;">
+        <p class="text-success" style="margin-bottom: 10px;">✓ Your face has been successfully registered!</p>
+        <button class="btn btn-danger" id="unenroll-btn" style="width: 100%; margin-top: 10px">
+          🗑 Remove Face Profile
+        </button>
+      </div>
+      {% endif %}
+    </div>
+  </main>
+</div>
+
+<script>
+  const video = document.getElementById('camera-stream');
+  const startBtn = document.getElementById('start-btn');
+  const captureBtn = document.getElementById('capture-btn');
+  const resetBtn = document.getElementById('reset-btn');
+  const unenrollBtn = document.getElementById('unenroll-btn');
+  const statusMsg = document.getElementById('status-message');
+  const captureCount = document.getElementById('capture-count');
+  const countValue = document.getElementById('count-value');
+
+  let stream = null;
+  let capturedFrames = 0;
+  const MAX_CAPTURES = 5;
+
+  startBtn.addEventListener('click', async () => {
+    try {
+      // Request camera access
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'user', width: 640, height: 480 }
+      });
+      video.srcObject = stream;
+      video.style.display = 'block';
+
+      startBtn.style.display = 'none';
+      captureBtn.style.display = 'block';
+      resetBtn.style.display = 'block';
+      captureCount.style.display = 'block';
+
+      showMessage('Camera ready. Click "Capture Face" to start.', 'info');
+    } catch (err) {
+      showMessage('❌ Camera access denied', 'error');
+    }
+  });
+
+  captureBtn.addEventListener('click', () => {
+    if (capturedFrames >= MAX_CAPTURES) {
+      showMessage('✓ Maximum captures reached. Processing...', 'success');
+      enroll();
+      return;
+    }
+
+    const canvas = document.createElement('canvas');
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0);
+
+    // Send to server
+    const imageData = canvas.toDataURL('image/jpeg', 0.8);
+    fetch('/api/face/enroll', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ image: imageData, final: (capturedFrames === MAX_CAPTURES - 1) })
+    })
+    .then(res => {
+      if (!res.ok) return res.json().then(d => { throw new Error(d.error || 'Capture failed'); });
+      return res.json();
+    })
+    .then(data => {
+      capturedFrames = data.count || (capturedFrames + 1);
+      countValue.textContent = capturedFrames;
+      showMessage(`✓ Face captured (${capturedFrames}/${MAX_CAPTURES})`, 'success');
+
+      if (data.saved || capturedFrames >= MAX_CAPTURES) {
+        captureBtn.textContent = '✓ Processing...';
+        captureBtn.disabled = true;
+        setTimeout(() => {
+          showMessage('✓ Face enrollment complete!', 'success');
+          captureBtn.style.display = 'none';
+          location.reload();
+        }, 1000);
+      }
+    })
+    .catch(err => {
+      showMessage('❌ ' + err.message, 'error');
+    });
+  });
+
+  resetBtn.addEventListener('click', () => {
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+    }
+    capturedFrames = 0;
+    countValue.textContent = '0';
+    video.srcObject = null;
+    video.style.display = 'none';
+
+    startBtn.style.display = 'block';
+    captureBtn.style.display = 'none';
+    resetBtn.style.display = 'none';
+    captureCount.style.display = 'none';
+    statusMsg.style.display = 'none';
+  });
+
+  if (unenrollBtn) {
+    unenrollBtn.addEventListener('click', () => {
+      if (confirm('Are you sure? This will remove your face profile.')) {
+        fetch('/api/face/unenroll', { method: 'POST' })
+          .then(res => {
+            if (!res.ok) return res.json().then(d => { throw new Error(d.error || 'Failed'); });
+            return res.json();
+          })
+          .then(data => {
+            showMessage('✓ Face profile removed', 'success');
+            setTimeout(() => location.reload(), 1000);
+          })
+          .catch(err => {
+            showMessage('❌ ' + err.message, 'error');
+          });
+      }
+    });
+  }
+
+  function showMessage(msg, type) {
+    statusMsg.textContent = msg;
+    statusMsg.className = 'capture-indicator';
+    if (type === 'error') statusMsg.classList.add('error');
+    if (type === 'success') statusMsg.classList.add('success');
+    statusMsg.style.display = 'block';
+  }
+
+  // Auto-show camera on page load if status is pending
+  if ('{{ status }}' === 'pending') {
+    startBtn.click();
+  }
+</script>
+
+</body>
+</html>

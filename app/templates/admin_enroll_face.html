@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mandatory Face Enrollment - Admin Portal</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .enroll-container {
+            max-width: 800px;
+            margin: 40px auto;
+            background: var(--panel);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            border: 1px solid var(--border);
+        }
+        .header {
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: #fff;
+            padding: 20px;
+            text-align: center;
+        }
+        .content {
+            padding: 30px;
+            text-align: center;
+        }
+        .video-wrapper {
+            position: relative;
+            width: 100%;
+            max-width: 500px;
+            margin: 0 auto;
+            border-radius: var(--radius);
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            background: #000;
+        }
+        video {
+            width: 100%;
+            display: block;
+            transform: scaleX(-1);
+        }
+        .camera-overlay {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 60%; height: 75%;
+            border: 2px dashed rgba(255,255,255,0.6);
+            border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+            box-shadow: 0 0 0 4000px rgba(0,0,0,0.4);
+            pointer-events: none;
+        }
+        .progress-container {
+            margin-top: 30px;
+            width: 100%;
+            background: var(--bg);
+            border-radius: 10px;
+            height: 20px;
+            overflow: hidden;
+        }
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: var(--accent);
+            transition: width 0.3s ease;
+        }
+        .status-text {
+            margin-top: 15px;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+        }
+        .btn-capture {
+            margin-top: 25px;
+            padding: 12px 30px;
+            font-size: 18px;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: var(--radius2);
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .btn-capture:disabled {
+            background: var(--muted);
+            cursor: not-allowed;
+        }
+        .btn-skip {
+            display: block;
+            margin: 20px auto 0;
+            color: var(--danger);
+            text-decoration: none;
+            font-size: 14px;
+        }
+        .instructions {
+            margin-bottom: 20px;
+            color: var(--muted);
+            font-size: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="enroll-container">
+    <div class="header">
+        <h2>Compulsory Face Enrollment</h2>
+        <p>Registering AI Profile for: <strong>{{ student.name }}</strong></p>
+        <div style="font-size: 0.9em; opacity: 0.9; margin-top: 8px;">
+            <span class="badge" style="background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 4px;">Roll: {{ student.roll_number }}</span>
+            <span class="badge" style="background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 4px; margin-left: 10px;">{{ student.department }} (Sem {{ student.semester }})</span>
+        </div>
+    </div>
+    
+    <div class="content">
+        {% if status == 'enrolled' %}
+            <div style="padding: 40px; color: var(--success);">
+                <i class="fas fa-check-circle" style="font-size: 64px; margin-bottom: 20px;"></i>
+                <h2>Face Automatically Enrolled!</h2>
+                <p>Student is ready for Smart Attendance.</p>
+                <a href="{{ url_for('admin.dashboard') }}" class="btn-capture" style="display:inline-block; text-decoration:none;">Return to Dashboard</a>
+            </div>
+        {% else %}
+            <p class="instructions">
+                Please ask the student to look directly into the camera. We need 10 samples to create a robust 3D mesh profile.
+            </p>
+
+            <div class="video-wrapper">
+                <video id="video" autoplay playsinline></video>
+                <div class="camera-overlay"></div>
+            </div>
+
+            <button id="start-btn" class="btn-capture">
+                <i class="fas fa-camera"></i> Start Deep Scan
+            </button>
+            <a href="{{ url_for('admin.dashboard') }}" class="btn-skip">Skip for now (Student will remain Pending)</a>
+
+            <div class="progress-container">
+                <div id="progress" class="progress-bar"></div>
+            </div>
+            <div id="status" class="status-text">Ready to scan.</div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+    {% if status != 'enrolled' %}
+    const video = document.getElementById('video');
+    const startBtn = document.getElementById('start-btn');
+    const progress = document.getElementById('progress');
+    const statusText = document.getElementById('status');
+    const studentId = {{ student.student_id }};
+    
+    let isScanning = false;
+    let scanCount = 0;
+    const requiredScans = 10;
+
+    // Start Camera
+    navigator.mediaDevices.getUserMedia({ video: true })
+        .then(stream => {
+            video.srcObject = stream;
+        })
+        .catch(err => {
+            statusText.innerText = "Camera access denied or unavailable.";
+            statusText.style.color = "var(--danger)";
+        });
+
+    startBtn.addEventListener('click', async () => {
+        if(isScanning) return;
+        isScanning = true;
+        startBtn.disabled = true;
+        scanCount = 0;
+        
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        let interval = setInterval(async () => {
+            if(scanCount >= requiredScans) {
+                clearInterval(interval);
+                return;
+            }
+
+            // Provide guidance based on scanCount
+            if (scanCount < 3) {
+                statusText.innerText = `[${scanCount+1}/${requiredScans}] Look Straight 😐`;
+            } else if (scanCount < 6) {
+                statusText.innerText = `[${scanCount+1}/${requiredScans}] Turn Slightly Left 👤`;
+            } else if (scanCount < 9) {
+                statusText.innerText = `[${scanCount+1}/${requiredScans}] Turn Slightly Right 👤`;
+            } else {
+                statusText.innerText = `[${scanCount+1}/${requiredScans}] Tilt Head Slightly 📐`;
+            }
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            const frameB64 = canvas.toDataURL('image/jpeg', 0.8);
+            
+            try {
+                const response = await fetch(`/api/face/admin_enroll/${studentId}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        image: frameB64,
+                        final: (scanCount === requiredScans - 1)
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if(response.ok) {
+                    scanCount++;
+                    const percent = Math.round((scanCount / requiredScans) * 100);
+                    progress.style.width = percent + '%';
+                    
+                    if(data.saved) {
+                        clearInterval(interval);
+                        statusText.innerText = "✅ AI Profile Completed!";
+                        statusText.style.color = "var(--success)";
+                        setTimeout(() => {
+                            window.location.href = "{{ url_for('admin.dashboard') }}";
+                        }, 1500);
+                    }
+                } else {
+                    console.log("Scan attempt failed:", data.error);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }, 1000); // Increased to 1s to allow user to adjust pose
+    });
+    {% endif %}
+</script>
+
+</body>
+</html>

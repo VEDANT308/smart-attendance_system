@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Face Attendance Marking — SmartAttend</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    .marking-wrapper {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .marking-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-top: 20px;
+    }
+
+    @media (max-width: 900px) {
+      .marking-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .camera-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .camera-header {
+      padding: 12px 16px;
+      background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+    }
+
+    #camera-stream {
+      width: 100%;
+      display: block;
+      background: var(--bg2);
+      aspect-ratio: 4/3;
+    }
+
+    .camera-controls {
+      padding: 16px;
+      display: flex;
+      gap: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .camera-controls button {
+      flex: 1;
+    }
+
+    .attendance-panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .attendance-header {
+      padding: 16px;
+      background: var(--bg3);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .subject-selector {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 13px;
+      padding: 8px 12px;
+      margin-top: 8px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .subject-selector:focus {
+      border-color: var(--accent);
+    }
+
+    .attendance-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+
+    .attendance-item {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(-20px);
+        opacity: 0;
+      }
+
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    .attendance-item.success {
+      border-color: rgba(76, 175, 125, .3);
+      background: rgba(76, 175, 125, .08);
+    }
+
+    .attendance-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .attendance-name {
+      color: var(--text);
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .attendance-time {
+      color: var(--muted);
+      font-size: 11px;
+    }
+
+    .attendance-confidence {
+      background: rgba(79, 142, 247, .2);
+      color: var(--accent);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+
+    .status-box {
+      background: rgba(79, 142, 247, .08);
+      border: 1px solid rgba(79, 142, 247, .2);
+      border-radius: 8px;
+      padding: 12px 14px;
+      margin-top: 12px;
+      font-size: 12px;
+      color: var(--accent);
+    }
+
+    .status-box.active {
+      background: rgba(76, 175, 125, .08);
+      border-color: rgba(76, 175, 125, .2);
+      color: var(--success);
+    }
+
+    .recording-badge {
+      display: inline-block;
+      background: rgba(232, 84, 84, .2);
+      color: var(--danger);
+      padding: 4px 10px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-top: 8px;
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1;
+      }
+
+      50% {
+        opacity: 0.5;
+      }
+    }
+
+    .empty-state-list {
+      text-align: center;
+      padding: 30px 20px;
+      color: var(--muted);
+    }
+
+    .empty-state-list .empty-icon {
+      font-size: 30px;
+      margin-bottom: 8px;
+    }
+
+    .empty-state-list .empty-text {
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="app-layout">
+    <header class="topbar">
+      <a class="topbar-brand" href="/teacher">
+        <div class="brand-dot"></div>
+        SmartAttend
+      </a>
+      <div class="topbar-right">
+        <div class="user-chip">
+          👤 <span class="name">{{ session.name }}</span>
+          <span class="role-badge teacher">Teacher</span>
+        </div>
+        <a href="/logout" class="btn btn-ghost btn-sm">Sign Out</a>
+      </div>
+    </header>
+
+    <nav class="sidebar">
+      <div class="sidebar-section">
+        <a class="nav-item" href="/teacher"><span class="nav-icon">⬅</span> Back to Dashboard</a>
+        <a class="nav-item active" href="#"><span class="nav-icon">👤</span> Face Attendance</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <div class="marking-wrapper">
+        <div class="page-header">
+          <h1 class="page-title">Face Recognition <span>Attendance</span></h1>
+          <p class="page-subtitle">Mark attendance using real-time face recognition</p>
+        </div>
+
+        <div class="marking-grid">
+          <!-- Camera Panel -->
+          <div class="camera-panel">
+            <div class="camera-header">
+              📹 Camera Feed
+              {% if current_subject %}
+              <div style="margin-top: 8px; color: var(--accent)">
+                {{ current_subject.course_code }} - {{ current_subject.name }}
+              </div>
+              {% endif %}
+            </div>
+            <video id="camera-stream" autoplay playsinline></video>
+            <div class="camera-controls">
+              <button class="btn btn-primary" id="start-btn">🎥 Start</button>
+              <button class="btn btn-danger" id="stop-btn" style="display:none">⏹ Stop</button>
+            </div>
+          </div>
+
+          <!-- Attendance Panel -->
+          <div class="attendance-panel">
+            <div class="attendance-header">
+              <div style="font-size: 13px; font-weight: 600; color: var(--muted)">📋 RECOGNIZED STUDENTS</div>
+
+              <select class="subject-selector" id="subject-select">
+                <option value="">Select Subject...</option>
+                {% for subject in subjects %}
+                <option value="{{ subject.subject_id }}" {% if current_subject and
+                  current_subject.subject_id==subject.subject_id %}selected{% endif %}>
+                  {{ subject.course_code }} - {{ subject.name }}
+                </option>
+                {% endfor %}
+              </select>
+
+              <div class="status-box" id="status-box">
+                ⏳ Ready to detect faces
+              </div>
+            </div>
+
+            <div class="attendance-list" id="attendance-list">
+              <div class="empty-state-list">
+                <div class="empty-icon">👤</div>
+                <div class="empty-text">No students recognized yet</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const video = document.getElementById('camera-stream');
+    const startBtn = document.getElementById('start-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const subjectSelect = document.getElementById('subject-select');
+    const attendanceList = document.getElementById('attendance-list');
+    const statusBox = document.getElementById('status-box');
+
+    let stream = null;
+    let isRecording = false;
+    let recognizedStudents = new Set();
+    const recognitionInterval = 500; // ms between recognitions
+
+    startBtn.addEventListener('click', startCamera);
+    stopBtn.addEventListener('click', stopCamera);
+
+    async function startCamera() {
+      if (!subjectSelect.value) {
+        statusBox.textContent = '⚠ Please select a subject first';
+        statusBox.style.color = 'var(--warn)';
+        return;
+      }
+
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: 1280, height: 720 }
+        });
+        video.srcObject = stream;
+
+        startBtn.style.display = 'none';
+        stopBtn.style.display = 'block';
+        isRecording = true;
+
+        statusBox.textContent = '🔴 LIVE - Detecting faces...';
+        statusBox.classList.add('active');
+        statusBox.innerHTML += '<div class="recording-badge">● RECORDING</div>';
+
+        // Start face recognition loop
+        recognitionLoop();
+      } catch (err) {
+        statusBox.textContent = '❌ Camera access denied';
+        statusBox.style.color = 'var(--danger)';
+      }
+    }
+
+    function stopCamera() {
+      isRecording = false;
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+      }
+      video.srcObject = null;
+
+      startBtn.style.display = 'block';
+      stopBtn.style.display = 'none';
+
+      statusBox.textContent = '⏹ Recording stopped';
+      statusBox.classList.remove('active');
+      statusBox.style.color = 'var(--muted)';
+    }
+
+    async function recognitionLoop() {
+      while (isRecording) {
+        try {
+          const canvas = document.createElement('canvas');
+          canvas.width = video.videoWidth || 640;
+          canvas.height = video.videoHeight || 480;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(video, 0, 0);
+
+          const imageData = canvas.toDataURL('image/jpeg', 0.7);
+          const response = await fetch('/api/face/recognize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              image: imageData,
+              subject_id: subjectSelect.value
+            })
+          });
+
+          const data = await response.json();
+          if (data.recognized_students && data.recognized_students.length > 0) {
+            updateAttendanceList(data.recognized_students);
+            statusBox.textContent = `🔴 LIVE — ${data.count} student(s) detected`;
+            statusBox.className = 'status-box active';
+          } else if (data.detected === false) {
+            // No face — quietly continue
+          } else if (data.error) {
+            console.warn('Recognition error:', data.error);
+          }
+        } catch (err) {
+          console.error('Recognition error:', err);
+        }
+
+        await new Promise(r => setTimeout(r, recognitionInterval));
+      }
+    }
+
+    function updateAttendanceList(recognizedList) {
+      recognizedList.forEach(student => {
+        const studentKey = `${student.student_id}`;
+
+        if (!recognizedStudents.has(studentKey)) {
+          recognizedStudents.add(studentKey);
+
+          const displayName = student.name || `Student #${student.student_id}`;
+          const confidencePct = (student.confidence * 100).toFixed(0);
+          const markedText = student.marked ? '✅ Marked Present' : '🔁 Already Marked';
+
+          const item = document.createElement('div');
+          item.className = 'attendance-item success';
+          item.innerHTML = `
+          <div class="attendance-info">
+            <div class="attendance-name">${displayName}</div>
+            <div class="attendance-time">${student.time || new Date().toLocaleTimeString()} — ${markedText}</div>
+          </div>
+          <div class="attendance-confidence">
+            ${confidencePct}%
+          </div>
+        `;
+
+          // Replace empty state if exists
+          const emptyState = attendanceList.querySelector('.empty-state-list');
+          if (emptyState) {
+            attendanceList.innerHTML = '';
+          }
+
+          attendanceList.insertBefore(item, attendanceList.firstChild);
+
+          // Keep only last 20 items
+          const items = attendanceList.querySelectorAll('.attendance-item');
+          if (items.length > 20) {
+            items[items.length - 1].remove();
+          }
+        }
+      });
+    }
+
+    // Set current subject if available
+    document.addEventListener("DOMContentLoaded", function () {
+      const currentSubjectId = "{{ current_subject.subject_id if current_subject else '' }}";
+
+      if (currentSubjectId && typeof subjectSelect !== "undefined" && subjectSelect) {
+        subjectSelect.value = currentSubjectId;
+      }
+    });
+  </script>
+
+</body>
+
+</html>

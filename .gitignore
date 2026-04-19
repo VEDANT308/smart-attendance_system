@@ -1,0 +1,55 @@
+# =====================
+# DATABASE FILES (DO NOT PUSH)
+# =====================
+attendance.db
+*.db
+*.sqlite
+*.sqlite3
+
+# =====================
+# ENV FILES (SECRETS)
+# =====================
+.env
+
+# =====================
+# PYTHON CACHE
+# =====================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# =====================
+# VIRTUAL ENVIRONMENT
+# =====================
+venv/
+.venv/
+env/
+
+# =====================
+# FACE RECOGNITION DATA (VERY IMPORTANT)
+# =====================
+dataset/
+images/
+faces/
+training_images/
+encodings/
+models/
+*.pkl
+
+# =====================
+# LOG FILES
+# =====================
+*.log
+
+# =====================
+# IDE FILES
+# =====================
+.vscode/
+.idea/
+
+# =====================
+# OS FILES
+# =====================
+.DS_Store
+Thumbs.db

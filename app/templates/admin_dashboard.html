@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard — SmartAttend</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- ── TOP BAR ── -->
+  <header class="topbar">
+    <a class="topbar-brand" href="/admin">
+      <div class="brand-dot"></div>
+      SmartAttend
+    </a>
+    <div class="topbar-right">
+      <div class="user-chip">
+        👤 <span class="name">{{ session.name }}</span>
+        <span class="role-badge admin">Admin</span>
+      </div>
+      <a href="/logout" class="btn btn-ghost btn-sm">Sign Out</a>
+    </div>
+  </header>
+
+  <!-- ── SIDEBAR ── -->
+  <nav class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Management</div>
+      <a class="nav-item active" onclick="showTab('students', this)" href="#">
+        <span class="nav-icon">👥</span> Students
+      </a>
+      <a class="nav-item" onclick="showTab('teachers', this)" href="#">
+        <span class="nav-icon">👨‍🏫</span> Teachers
+      </a>
+      <a class="nav-item" onclick="showTab('subjects', this)" href="#">
+        <span class="nav-icon">📚</span> Subjects
+      </a>
+      <a class="nav-item" onclick="showTab('timetable', this)" href="#">
+        <span class="nav-icon">🕐</span> Timetable
+      </a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Records</div>
+      <a class="nav-item" href="/admin/attendance_records">
+        <span class="nav-icon">📋</span> Attendance
+      </a>
+      <a class="nav-item" href="/admin/export_attendance">
+        <span class="nav-icon">📥</span> Export CSV
+      </a>
+    </div>
+  </nav>
+
+  <!-- ── MAIN ── -->
+  <main class="main-content">
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-container" id="flash-box">
+          {% for cat, msg in messages %}
+            <div class="flash flash-{{ cat }}">
+              {{ '✓' if cat == 'success' else '⚠' }} {{ msg }}
+            </div>
+          {% endfor %}
+        </div>
+        <script>setTimeout(()=>{let b=document.getElementById('flash-box');if(b)b.style.opacity='0';},4000);</script>
+      {% endif %}
+    {% endwith %}
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-num">{{ students|length }}</div>
+        <div class="stat-label">Total Students</div>
+      </div>
+      <div class="stat-card green">
+        <div class="stat-num">{{ subjects|length }}</div>
+        <div class="stat-label">Subjects</div>
+      </div>
+      <div class="stat-card orange">
+        <div class="stat-num">{{ teachers|length }}</div>
+        <div class="stat-label">Teachers</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num">{{ timetable|length }}</div>
+        <div class="stat-label">Timetable Slots</div>
+      </div>
+    </div>
+
+    <!-- ═══════════ STUDENTS TAB ═══════════ -->
+    <div class="panel" id="tab-students">
+      <div class="panel-head">
+        <span class="panel-title">👥 Students</span>
+        <button class="btn btn-primary btn-sm" onclick="openModal('add-student-modal')">+ Add Student</button>
+      </div>
+      <div class="overflow-auto">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>#</th><th>Name</th><th>Class</th><th>AI Status</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for s in students %}
+            <tr>
+              <td class="text-muted">{{ s.student_id }}</td>
+              <td>{{ s.name }}</td>
+              <td><span class="badge badge-verified">{{ s.class }}</span></td>
+              <td>
+                {% if s.face_status == 'enrolled' %}
+                  <span style="color:var(--success); font-weight:bold;"><i class="fas fa-check-circle"></i> Active</span>
+                {% elif s.face_status == 'failed' %}
+                  <span style="color:var(--danger); font-weight:bold;"><i class="fas fa-exclamation-triangle"></i> Re-enrollment Needed</span>
+                {% else %}
+                  <span style="color:#FFA500; font-weight:bold;"><i class="fas fa-clock"></i> Pending Enrollment</span>
+                {% endif %}
+              </td>
+              <td>
+                <div style="display:flex; gap:8px;">
+                  {% if s.face_status != 'enrolled' %}
+                    <a href="{{ url_for('admin.enroll_student_face', student_id=s.student_id) }}" class="btn btn-sm" style="background:#FFA500; color:#fff;">Enroll Face</a>
+                  {% else %}
+                    <a href="{{ url_for('admin.enroll_student_face', student_id=s.student_id) }}" class="btn btn-sm btn-primary">Re-enroll Face</a>
+                    <form method="POST" action="/admin/remove_student/{{ s.student_id }}" onsubmit="return confirm('Delete this student completely?')" style="display:inline;">
+                      <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                    </form>
+                  {% endif %}
+                  <button class="btn btn-ghost btn-sm">View</button>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5">
+              <div class="empty-state"><div class="empty-icon">👥</div><div class="empty-text">No students yet.</div></div>
+            </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══════════ TEACHERS TAB ═══════════ -->
+    <div class="panel" id="tab-teachers" style="display:none">
+      <div class="panel-head">
+        <span class="panel-title">👨‍🏫 Teacher Management</span>
+        <button class="btn btn-primary btn-sm" onclick="openModal('add-teacher-modal')">+ Add Teacher</button>
+      </div>
+      <div class="overflow-auto">
+        <table class="data-table">
+          <thead>
+            <tr><th>Name</th><th>Email</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            {% for t in teachers %}
+            <tr>
+              <td>{{ t.name }}</td>
+              <td>{{ t.email }}</td>
+              <td>
+                <span class="badge {% if t.is_active %}badge-verified{% else %}badge-pending{% endif %}">
+                  {{ 'Active' if t.is_active else 'Deactivated' }}
+                </span>
+              </td>
+              <td style="display:flex; gap:8px">
+                <form method="POST" action="/admin/toggle_teacher/{{ t.id }}">
+                  <button type="submit" class="btn btn-ghost btn-sm">
+                    {{ 'Deactivate' if t.is_active else 'Activate' }}
+                  </button>
+                </form>
+                <form method="POST" action="/admin/delete_teacher/{{ t.id }}" onsubmit="return confirm('Permanently delete this teacher? Only works if no records found.')">
+                  <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4">
+              <div class="empty-state"><div class="empty-icon">👨‍🏫</div><div class="empty-text">No teachers found.</div></div>
+            </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ═══════════ SUBJECTS TAB ═══════════ -->
+    <div class="panel" id="tab-subjects" style="display:none">
+      <div class="panel-head">
+        <span class="panel-title">📚 Subjects</span>
+        <button class="btn btn-primary btn-sm" onclick="openModal('add-subject-modal')">+ Add Subject</button>
+      </div>
+      <div class="overflow-auto">
+        <table class="data-table">
+          <thead>
+            <tr><th>Code</th><th>Subject Name</th></tr>
+          </thead>
+          <tbody>
+            {% for s in subjects %}
+            <tr>
+              <td><span class="text-accent mono">{{ s.course_code }}</span></td>
+              <td>{{ s.name }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="2"><div class="empty-state">No subjects yet.</div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel-head" style="margin-top:20px; border-top: 1px solid var(--border)">
+        <span class="panel-title">🔗 Teacher-Subject Assignment</span>
+      </div>
+      <div style="padding: 20px">
+        <form method="POST" action="/admin/assign_teacher">
+          <div class="form-grid" style="grid-template-columns: 1fr 1fr 1fr auto; gap:12px; align-items: end;">
+            <div class="form-group">
+              <label class="form-label">Subject</label>
+              <select name="subject_id" class="form-select" required>
+                <option value="">Select subject...</option>
+                {% for s in subjects %}
+                  <option value="{{ s.subject_id }}">{{ s.name }} ({{ s.course_code }})</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Teacher</label>
+              <select name="teacher_id" class="form-select" required>
+                <option value="">Select teacher...</option>
+                {% for t in teachers %}
+                  {% if t.is_active %}
+                    <option value="{{ t.id }}">{{ t.name }}</option>
+                  {% endif %}
+                {% endfor %}
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Class</label>
+              <input type="text" name="assigned_class" class="form-input" placeholder="e.g. CSE-3A" required />
+            </div>
+            <button type="submit" class="btn btn-success">Assign →</button>
+          </div>
+        </form>
+      </div>
+
+      <div style="padding: 0 20px 20px">
+        <div class="panel-title" style="margin: 10px 0">Current Assignments</div>
+        <table class="data-table">
+          <thead>
+            <tr><th>Subject</th><th>Teacher</th><th>Class</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            {% for a in assignments %}
+            <tr>
+              <td>{{ a.subject_name }} ({{ a.course_code }})</td>
+              <td>{{ a.teacher_name }}</td>
+              <td><span class="badge badge-verified">{{ a.assigned_class }}</span></td>
+              <td>
+                <form method="POST" action="/admin/remove_assignment/{{ a.assignment_id }}">
+                  <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="4"><div class="empty-text">No active assignments.</div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+
+
+    <!-- ═══════════ TIMETABLE TAB ═══════════ -->
+    <div class="panel" id="tab-timetable" style="display:none">
+      <div class="panel-head">
+        <span class="panel-title">🕐 Timetable</span>
+        <button class="btn btn-primary btn-sm" onclick="openModal('add-tt-modal')">+ Add Slot</button>
+      </div>
+      <div class="overflow-auto">
+        <table class="data-table">
+          <thead>
+            <tr><th>Code</th><th>Subject</th><th>Teacher</th><th>Day</th><th>Start</th><th>End</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            {% for t in timetable %}
+            <tr>
+              <td><span class="text-accent mono">{{ t.course_code }}</span></td>
+              <td>{{ t.subject_name }}</td>
+              <td class="text-muted">{{ t.teacher_name or '—' }}</td>
+              <td>
+                <span class="badge badge-verified">
+                {% if t.day_of_week == 0 %}Monday{% elif t.day_of_week == 1 %}Tuesday{% elif t.day_of_week == 2 %}Wednesday{% elif t.day_of_week == 3 %}Thursday{% elif t.day_of_week == 4 %}Friday{% elif t.day_of_week == 5 %}Saturday{% else %}Sunday{% endif %}
+                </span>
+              </td>
+              <td><span class="badge badge-verified">{{ t.start_time }}</span></td>
+              <td><span class="badge badge-pending">{{ t.end_time }}</span></td>
+              <td>
+                <form method="POST" action="/admin/remove_timetable/{{ t.id }}">
+                  <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="7">
+              <div class="empty-state"><div class="empty-icon">🕐</div><div class="empty-text">No timetable entries yet.</div></div>
+            </td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="panel-head" style="margin-top:20px; border-top: 1px solid var(--border)">
+        <span class="panel-title">⚠️ Schedule Overrides (Mode B)</span>
+        <button class="btn btn-primary btn-sm" onclick="openModal('add-override-modal')">+ Add Override</button>
+      </div>
+      <div class="overflow-auto">
+        <table class="data-table">
+          <thead>
+            <tr><th>Date</th><th>Subject</th><th>Type</th><th>New Time</th><th>Action</th></tr>
+          </thead>
+          <tbody>
+            {% for o in overrides %}
+            <tr>
+              <td>{{ o.override_date }}</td>
+              <td>{{ o.subject_name }} ({{ o.course_code }})</td>
+              <td>
+                <span class="badge {% if o.override_type == 'cancelled' or o.override_type == 'holiday' %}badge-absent{% else %}badge-present{% endif %}">
+                  {{ o.override_type|upper }}
+                </span>
+              </td>
+              <td>
+                {% if o.new_start_time %}
+                  {{ o.new_start_time }} - {{ o.new_end_time }}
+                {% else %}
+                  <span class="text-muted">—</span>
+                {% endif %}
+              </td>
+              <td>
+                <form method="POST" action="/admin/remove_override/{{ o.id }}">
+                  <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5"><div class="empty-state"><div class="empty-text">No active overrides.</div></div></td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- ══════════════════════════════════
+     MODALS
+══════════════════════════════════ -->
+
+<!-- Add Student Modal -->
+<div class="modal-overlay" id="add-student-modal">
+  <div class="modal">
+    <div class="modal-title">➕ Add New Student</div>
+    <form method="POST" action="/admin/add_student">
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Full Name</label>
+        <input type="text" name="name" class="form-input" placeholder="Student Name" required />
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-input" placeholder="student@school.com" required />
+      </div>
+      <div class="form-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px">
+        <div class="form-group">
+          <label class="form-label">Roll Number</label>
+          <input type="text" name="roll_number" class="form-input" placeholder="e.g. 2023CS01" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Class</label>
+          <input type="text" name="student_class" class="form-input" placeholder="e.g. CS-3A" required />
+        </div>
+      </div>
+      <div class="form-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:14px">
+        <div class="form-group">
+          <label class="form-label">Department</label>
+          <input type="text" name="department" class="form-input" placeholder="e.g. CSE" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Semester</label>
+          <input type="text" name="semester" class="form-input" placeholder="e.g. 5" required />
+        </div>
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Password</label>
+        <input type="password" name="password" class="form-input" placeholder="••••••••" required />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('add-student-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Student</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Subject Modal -->
+<div class="modal-overlay" id="add-subject-modal">
+  <div class="modal">
+    <div class="modal-title">📚 Add New Subject</div>
+    <form method="POST" action="/admin/add_subject">
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Subject Name</label>
+        <input type="text" name="name" class="form-input" placeholder="e.g. Data Structures" required />
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Course Code</label>
+        <input type="text" name="course_code" class="form-input" placeholder="e.g. CS301" required />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('add-subject-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Subject</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Timetable Modal -->
+<div class="modal-overlay" id="add-tt-modal">
+  <div class="modal">
+    <div class="modal-title">🕐 Add Timetable Slot</div>
+    <form method="POST" action="/admin/add_timetable">
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Subject</label>
+        <select name="subject_id" class="form-select" required>
+          <option value="">Select subject...</option>
+          {% for s in subjects %}
+            <option value="{{ s.subject_id }}">{{ s.name }} ({{ s.course_code }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Day of Week</label>
+        <select name="day_of_week" class="form-select" required>
+          <option value="0">Monday</option>
+          <option value="1">Tuesday</option>
+          <option value="2">Wednesday</option>
+          <option value="3">Thursday</option>
+          <option value="4">Friday</option>
+          <option value="5">Saturday</option>
+          <option value="6">Sunday</option>
+        </select>
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr; margin-bottom:14px">
+        <div class="form-group">
+          <label class="form-label">Start Time</label>
+          <input type="time" name="start_time" class="form-input" required />
+        </div>
+        <div class="form-group">
+          <label class="form-label">End Time</label>
+          <input type="time" name="end_time" class="form-input" required />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('add-tt-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Slot</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Override Modal -->
+<div class="modal-overlay" id="add-override-modal">
+  <div class="modal">
+    <div class="modal-title">⚠️ Add Schedule Override</div>
+    <form method="POST" action="/admin/add_override">
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Override Type</label>
+        <select name="override_type" class="form-select" required>
+          <option value="cancelled">Cancelled</option>
+          <option value="holiday">Holiday</option>
+          <option value="rescheduled">Rescheduled</option>
+          <option value="extra">Extra Class</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Subject</label>
+        <select name="subject_id" class="form-select" required>
+          <option value="">Select subject...</option>
+          {% for s in subjects %}
+            <option value="{{ s.subject_id }}">{{ s.name }} ({{ s.course_code }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Target Date</label>
+        <input type="date" name="override_date" class="form-input" required />
+      </div>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr; margin-bottom:14px">
+        <div class="form-group">
+          <label class="form-label">New Start Time (Optional)</label>
+          <input type="time" name="new_start_time" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">New End Time (Optional)</label>
+          <input type="time" name="new_end_time" class="form-input" />
+        </div>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('add-override-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Save Override</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Add Teacher Modal -->
+<div class="modal-overlay" id="add-teacher-modal">
+  <div class="modal">
+    <div class="modal-title">➕ Add New Teacher</div>
+    <form method="POST" action="/admin/add_teacher">
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Full Name</label>
+        <input type="text" name="name" class="form-input" placeholder="Teacher Name" required />
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-input" placeholder="teacher@school.com" required />
+      </div>
+      <div class="form-group" style="margin-bottom:14px">
+        <label class="form-label">Password</label>
+        <input type="password" name="password" class="form-input" placeholder="••••••••" required />
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn btn-ghost" onclick="closeModal('add-teacher-modal')">Cancel</button>
+        <button type="submit" class="btn btn-primary">Add Teacher</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Tab system
+  const TABS = ['students', 'subjects', 'teachers', 'timetable'];
+
+  function showTab(name, el) {
+    TABS.forEach(t => {
+      document.getElementById('tab-' + t).style.display = (t === name) ? '' : 'none';
+    });
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    if (el) el.classList.add('active');
+  }
+
+  // Modals
+  function openModal(id)  { document.getElementById(id).classList.add('open'); }
+  function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+
+  // Close modal on overlay click
+  document.querySelectorAll('.modal-overlay').forEach(o => {
+    o.addEventListener('click', e => { if (e.target === o) o.classList.remove('open'); });
+  });
+</script>
+
+</body>
+</html>

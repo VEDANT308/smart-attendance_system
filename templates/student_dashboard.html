@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Dashboard — SmartAttend</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    .info-banner {
+      background: rgba(79,142,247,.08);
+      border: 1px solid rgba(79,142,247,.2);
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 13px;
+      color: var(--accent);
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .recent-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .recent-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      background: var(--bg2);
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    .recent-item .date { color: var(--text); font-weight: 500; }
+
+    .overall-card {
+      background: linear-gradient(135deg, rgba(79,142,247,.15), rgba(56,201,168,.1));
+      border: 1px solid rgba(79,142,247,.3);
+      border-radius: var(--radius2);
+      padding: 24px;
+      margin-bottom: 24px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .overall-pct {
+      font-family: var(--font-head);
+      font-size: 56px;
+      font-weight: 800;
+      line-height: 1;
+      min-width: 140px;
+    }
+
+    .subject-detail {
+      display: none;
+    }
+
+    .subject-detail.active { display: block; }
+  </style>
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- ── TOP BAR ── -->
+  <header class="topbar">
+    <a class="topbar-brand" href="/student">
+      <div class="brand-dot"></div>
+      SmartAttend
+    </a>
+    <div class="topbar-right">
+      <div class="user-chip">
+        👤 <span class="name">{{ session.name }}</span>
+        <span class="role-badge student">Student</span>
+      </div>
+      <a href="/logout" class="btn btn-ghost btn-sm">Sign Out</a>
+    </div>
+  </header>
+
+  <!-- ── SIDEBAR ── -->
+  <nav class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Main Menu</div>
+      <a class="nav-item active" onclick="showView('overview', this)" href="#">
+        <span class="nav-icon">📊</span> Dashboard
+      </a>
+      <a class="nav-item" onclick="showView('my_attendance', this)" href="#">
+        <span class="nav-icon">📋</span> My Attendance
+      </a>
+      <a class="nav-item" onclick="showView('timetable', this)" href="#">
+        <span class="nav-icon">🕐</span> Timetable
+      </a>
+      <a class="nav-item" onclick="showView('notices', this)" href="#">
+        <span class="nav-icon">🔔</span> Notices
+      </a>
+      <a class="nav-item" onclick="showView('profile', this)" href="#">
+        <span class="nav-icon">👤</span> Profile
+      </a>
+    </div>
+  </nav>
+
+  <!-- ── MAIN ── -->
+  <main class="main-content">
+
+    <!-- ─ OVERVIEW ─ -->
+    <div id="view-overview">
+      <div class="page-header">
+        <h1 class="page-title">My <span>Attendance</span></h1>
+        <p class="page-subtitle">
+          {{ student.name }} &nbsp;·&nbsp; Class: {{ student.class }}
+        </p>
+      </div>
+
+      <!-- Info banner: read-only -->
+      <div class="info-banner">
+        🔒 This is a read-only view. Attendance is recorded via the face recognition system.
+      </div>
+
+      <!-- Overall attendance -->
+      {% set total_att = namespace(attended=0, total=0) %}
+      {% for item in attendance_data %}
+        {% set total_att.attended = total_att.attended + item.attended %}
+        {% set total_att.total    = total_att.total    + item.total_lectures %}
+      {% endfor %}
+      {% set overall = (total_att.attended / total_att.total * 100)|round(1) if total_att.total > 0 else 0 %}
+
+      <div class="overall-card">
+        <div>
+          <div class="overall-pct {% if overall >= 75 %}pct-high{% elif overall >= 60 %}pct-medium{% else %}pct-low{% endif %}">
+            {{ overall_percentage }}%
+          </div>
+        </div>
+        <div>
+          <div class="page-title" style="font-size:20px">Overall Attendance</div>
+          <div class="page-subtitle" style="margin-top:6px">
+            {{ total_att.attended }} classes attended out of {{ total_att.total }} total lectures
+          </div>
+          {% if overall_percentage < 75 %}
+            <div style="margin-top:10px; color:var(--danger); font-size:12px;">
+              ⚠ Your attendance is below 75%. Please attend more classes.
+            </div>
+          {% else %}
+            <div style="margin-top:10px; color:var(--success); font-size:12px;">
+              ✓ Your attendance is on track. Keep it up!
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="stats-grid" style="margin-bottom: 24px;">
+        <div class="stat-card">
+          <div class="stat-num">{{ attendance_data|length }}</div>
+          <div class="stat-label">Subjects Count</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-num">{{ timetable|length }}</div>
+          <div class="stat-label">Today's Classes</div>
+        </div>
+        <div class="stat-card orange">
+          <div class="stat-num">0</div>
+          <div class="stat-label">Notices (Pending)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─ MY ATTENDANCE ─ -->
+    <div id="view-my_attendance" style="display:none">
+      <div class="page-header">
+        <h1 class="page-title">My <span>Attendance</span></h1>
+        <p class="page-subtitle">Subject-wise logs and details</p>
+      </div>
+
+      <!-- Per-subject cards -->
+      <div class="subject-grid">
+        {% for item in attendance_data %}
+          {% set subj = item.subject %}
+          {% set pct  = item.percentage %}
+          <div class="subject-card" onclick="showSubjectDetail({{ loop.index0 }})" style="cursor:pointer">
+            <div class="subject-code">{{ subj.course_code }}</div>
+            <div class="subject-name">{{ subj.name }}</div>
+
+            <div class="pct-row">
+              <div class="pct-num {% if pct >= 75 %}pct-high{% elif pct >= 60 %}pct-medium{% else %}pct-low{% endif %}">
+                {{ pct }}%
+              </div>
+              <div class="text-muted" style="font-size:12px">
+                {{ item.attended }}/{{ item.total_lectures }}
+              </div>
+            </div>
+
+            <div class="attendance-bar">
+              <div class="attendance-fill {% if pct >= 75 %}fill-high{% elif pct >= 60 %}fill-medium{% else %}fill-low{% endif %}"
+                   style="width: {{ [pct, 100]|min }}%">
+              </div>
+            </div>
+
+            {% if pct < 75 %}
+              <div class="text-danger" style="font-size:11px; margin-top:8px">⚠ Below 75%</div>
+            {% endif %}
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <div class="empty-text">No subject data available yet.</div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ─ SUBJECT DETAIL VIEWS ─ -->
+    {% for item in attendance_data %}
+      <div class="subject-detail" id="subject-detail-{{ loop.index0 }}">
+        <div class="page-header">
+          <h1 class="page-title">
+            <span>{{ item.subject.course_code }}</span> — {{ item.subject.name }}
+          </h1>
+          <p class="page-subtitle">Your detailed attendance records</p>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+          <div class="stat-card {% if item.percentage >= 75 %}green{% elif item.percentage >= 60 %}orange{% else %}red{% endif %}">
+            <div class="stat-num">{{ item.percentage }}%</div>
+            <div class="stat-label">Attendance %</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num">{{ item.attended }}</div>
+            <div class="stat-label">Classes Attended</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num">{{ item.total_lectures }}</div>
+            <div class="stat-label">Total Lectures</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-num">{{ item.total_lectures - item.attended }}</div>
+            <div class="stat-label">Classes Missed</div>
+          </div>
+        </div>
+
+        <!-- Recent records -->
+        <div class="panel">
+          <div class="panel-head">
+            <span class="panel-title">Recent Attendance</span>
+          </div>
+          <div class="overflow-auto">
+            <table class="data-table">
+              <thead>
+                <tr><th>Date</th><th>Time</th><th>Status</th><th>Verification</th></tr>
+              </thead>
+              <tbody>
+                {% for r in item.recent %}
+                <tr>
+                  <td>{{ r.date }}</td>
+                  <td class="text-muted">{{ r.time }}</td>
+                  <td><span class="badge badge-{{ r.status }}">{{ r.status }}</span></td>
+                  <td>
+                    {% if r.verified %}
+                      <span class="badge badge-verified">✓ Verified</span>
+                    {% else %}
+                      <span class="badge badge-pending">⏳ Pending</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="4">
+                  <div class="empty-state">
+                    <div class="empty-icon">📭</div>
+                    <div class="empty-text">No attendance records yet for this subject.</div>
+                  </div>
+                </td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <button class="btn btn-ghost" onclick="showView('overview')" style="margin-top:8px">
+          ← Back to Overview
+        </button>
+      </div>
+    {% endfor %}
+
+    <!-- ─ TIMETABLE ─ -->
+    <div id="view-timetable" style="display:none">
+      <div class="page-header">
+        <h1 class="page-title">Today's <span>Timetable</span></h1>
+      </div>
+      <div class="panel">
+        <div class="overflow-auto">
+          <table class="data-table">
+            <thead>
+              <tr><th>Course</th><th>Subject</th><th>Teacher</th><th>Start Time</th><th>End Time</th></tr>
+            </thead>
+            <tbody>
+              {% for t in timetable %}
+              <tr>
+                <td><span class="badge badge-verified">{{ t.course_code }}</span></td>
+                <td>{{ t.subject_name }}</td>
+                <td class="text-muted">{{ t.teacher_name or 'Not Assigned' }}</td>
+                <td>{{ t.start_time }}</td>
+                <td>{{ t.end_time }}</td>
+              </tr>
+              {% else %}
+              <tr><td colspan="5"><div class="empty-state"><div class="empty-text">No active classes today.</div></div></td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─ NOTICES ─ -->
+    <div id="view-notices" style="display:none">
+      <div class="page-header">
+        <h1 class="page-title">Notice <span>Board</span></h1>
+      </div>
+      <div class="empty-state">
+        <div class="empty-icon">🔔</div>
+        <div class="empty-text">No new notices.</div>
+      </div>
+    </div>
+
+    <!-- ─ PROFILE ─ -->
+    <div id="view-profile" style="display:none">
+      <div class="page-header">
+        <h1 class="page-title">My <span>Profile</span></h1>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">Student Information</span>
+        </div>
+        <div style="padding:20px;">
+          <p><strong>Name:</strong> {{ student.name }}</p>
+          <p><strong>Roll Number:</strong> {{ student.student_id }}</p>
+          <p><strong>Email:</strong> {{ student.email }}</p>
+          <p><strong>Class:</strong> {{ student.class }}</p>
+          <br>
+          <a href="{{ url_for('student.face_enrollment') }}" class="btn btn-primary">Check Face Enrollment Status / Re-Enroll</a>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+  const VIEWS = ['overview', 'my_attendance', 'timetable', 'notices', 'profile'];
+
+  function showView(name, el) {
+    VIEWS.forEach(v => {
+      let el2 = document.getElementById('view-' + v);
+      if(el2) el2.style.display = (v === name) ? '' : 'none';
+    });
+    document.querySelectorAll('.subject-detail').forEach(d => d.classList.remove('active'));
+    document.querySelectorAll('.sidebar .nav-item').forEach(d => d.classList.remove('active'));
+    if (el) el.classList.add('active');
+  }
+
+  function showSubjectDetail(idx) {
+    VIEWS.forEach(v => {
+      let el = document.getElementById('view-' + v);
+      if(el) el.style.display = 'none';
+    });
+    document.querySelectorAll('.subject-detail').forEach(d => d.classList.remove('active'));
+    const el = document.getElementById('subject-detail-' + idx);
+    if (el) el.classList.add('active');
+  }
+</script>
+
+</body>
+</html>

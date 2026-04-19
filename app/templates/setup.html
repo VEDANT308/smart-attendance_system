@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>System Setup — SmartAttend</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <style>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background: radial-gradient(ellipse 60% 40% at 50% 50%, rgba(79,142,247,.1), transparent), var(--bg);
+    }
+    .auth-card {
+      background: var(--panel);
+      padding: 40px;
+      border-radius: var(--radius2);
+      border: 1px solid var(--border);
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    }
+    .auth-title {
+      font-family: var(--font-head);
+      font-size: 24px;
+      font-weight: 800;
+      text-align: center;
+      margin-bottom: 8px;
+    }
+    .auth-subtitle {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 30px;
+    }
+    .setup-icon {
+      font-size: 40px;
+      text-align: center;
+      margin-bottom: 10px;
+      color: var(--accent);
+    }
+  </style>
+</head>
+<body>
+
+<div class="auth-card">
+  <div class="setup-icon">⚙️</div>
+  <div class="auth-title">System Setup</div>
+  <div class="auth-subtitle">Create the Master Admin Account</div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      {% for cat, msg in messages %}
+        <div class="flash flash-{{ cat }}" style="margin-bottom:20px;">
+          {{ '✓' if cat == 'success' else '⚠' }} {{ msg }}
+        </div>
+      {% endfor %}
+    {% endif %}
+  {% endwith %}
+
+  <form method="POST" action="/setup">
+    <div class="form-group" style="margin-bottom:16px;">
+      <label class="form-label">Full Name</label>
+      <input type="text" name="name" class="form-input" placeholder="e.g. System Administrator" required />
+    </div>
+    
+    <div class="form-group" style="margin-bottom:16px;">
+      <label class="form-label">Admin Email</label>
+      <input type="email" name="email" class="form-input" placeholder="admin@domain.com" required />
+    </div>
+
+    <div class="form-group" style="margin-bottom:24px;">
+      <label class="form-label">Admin Password</label>
+      <input type="password" name="password" class="form-input" placeholder="••••••••" required />
+    </div>
+
+    <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; padding:12px;">
+      Initialize System
+    </button>
+  </form>
+</div>
+
+</body>
+</html>

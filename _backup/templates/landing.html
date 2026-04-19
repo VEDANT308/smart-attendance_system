@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartAttend - AI Face Recognition Attendance</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 40px 20px;
+      background: 
+        radial-gradient(ellipse 80% 60% at 50% -10%, rgba(79,142,247,.15), transparent),
+        radial-gradient(ellipse 60% 40% at 80% 90%, rgba(56,201,168,.1), transparent),
+        var(--bg);
+    }
+
+    .hero-logo {
+      font-family: var(--font-head);
+      font-size: clamp(36px, 8vw, 72px);
+      font-weight: 900;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 16px;
+      letter-spacing: -0.05em;
+    }
+
+    .hero-subtitle {
+      font-size: clamp(16px, 3vw, 22px);
+      color: var(--text);
+      margin-bottom: 8px;
+      max-width: 600px;
+    }
+
+    .hero-desc {
+      color: var(--muted);
+      font-size: 16px;
+      margin-bottom: 48px;
+      max-width: 500px;
+      line-height: 1.6;
+    }
+
+    .cta-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      max-width: 700px;
+      width: 100%;
+      margin: 0 auto;
+    }
+
+    .cta-card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius2);
+      padding: 32px;
+      text-decoration: none;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+    }
+
+    .cta-card:hover {
+      transform: translateY(-8px);
+      border-color: var(--accent);
+      box-shadow: 0 25px 50px -12px rgba(79,142,247,.25);
+    }
+
+    .cta-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 28px;
+      margin-bottom: 20px;
+    }
+
+    .cta-login .cta-icon { background: rgba(79,142,247,.2); color: var(--accent); }
+    .cta-attend .cta-icon { background: rgba(56,201,168,.2); color: var(--accent2); }
+
+    .cta-title {
+      font-family: var(--font-head);
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .cta-desc {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .features {
+      padding: 100px 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 40px;
+      margin-top: 60px;
+    }
+
+    .feature-card {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .feature-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 20px;
+      background: rgba(79,142,247,.15);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      margin: 0 auto 20px;
+      color: var(--accent);
+    }
+
+    .feature-title {
+      font-family: var(--font-head);
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    @media (max-width: 768px) {
+      .cta-grid { grid-template-columns: 1fr; }
+      .hero { padding: 20px; }
+    }
+  </style>
+</head>
+<body>
+  <!-- Hero Landing -->
+  <section class="hero">
+    <div class="hero-logo">SmartAttend</div>
+    <div class="hero-subtitle">AI-Powered Face Recognition Attendance System</div>
+    <p class="hero-desc">
+      Real-time attendance marking with 99% accuracy. No cards, no proxies. 
+      Just look at the camera.
+    </p>
+
+    <div class="cta-grid">
+      <a href="{{ url_for('login') }}" class="cta-card cta-login">
+        <div class="cta-icon">
+          <i class="fas fa-sign-in-alt"></i>
+        </div>
+        <div class="cta-title">Admin / Teacher / Student Login</div>
+        <div class="cta-desc">
+          Access full dashboard, manage classes, view reports
+        </div>
+      </a>
+
+      <a href="{{ url_for('guest_attendance') }}" class="cta-card cta-attend">
+        <div class="cta-icon">
+          <i class="fas fa-video"></i>
+        </div>
+        <div class="cta-title">🚀 Quick Attendance Mode</div>
+        <div class="cta-desc">
+          Start camera immediately (Guest Teacher Mode)<br>
+          No login required
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features">
+    <h2 style="text-align: center; font-size: 36px; font-weight: 800; margin-bottom: 16px;">
+      Why SmartAttend?
+    </h2>
+    <p style="text-align: center; color: var(--muted); font-size: 18px; max-width: 600px; margin: 0 auto 60px;">
+      Built for real classrooms with enterprise-grade accuracy
+    </p>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">
+          <i class="fas fa-brain"></i>
+        </div>
+        <div class="feature-title">99%+ Accuracy</div>
+        <div style="color: var(--muted);">
+          Deep learning embeddings reject imposters, handle lighting/angle variations
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <i class="fas fa-bolt"></i>
+        </div>
+        <div class="feature-title">Real-Time</div>
+        <div style="color: var(--muted);">
+          Live camera feed with confidence scores, instant marking
+        </div>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">
+          <i class="fas fa-chart-line"></i>
+        </div>
+        <div class="feature-title">Analytics</div>
+        <div style="color: var(--muted);">
+          Per-subject reports, 75% attendance alerts, Excel export
+        </div>
+      </div>
+    </div>
+  </section>
+</body>
+</html>
+

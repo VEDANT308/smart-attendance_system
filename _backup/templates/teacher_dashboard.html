@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Teacher Dashboard — SmartAttend</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="app-layout">
+
+  <!-- ── TOP BAR ── -->
+  <header class="topbar">
+    <a class="topbar-brand" href="/teacher">
+      <div class="brand-dot"></div>
+      SmartAttend
+    </a>
+    <div class="topbar-right">
+      <div class="user-chip">
+        👤 <span class="name">{{ session.name }}</span>
+        <span class="role-badge teacher">Teacher</span>
+      </div>
+      <a href="/logout" class="btn btn-ghost btn-sm">Sign Out</a>
+    </div>
+  </header>
+
+  <!-- ── SIDEBAR ── -->
+  <nav class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">Dashboard</div>
+      <a class="nav-item active" onclick="showSection('overview')" href="#">
+        <span class="nav-icon">📊</span> Overview
+      </a>
+      <a class="nav-item" onclick="showSection('students')" href="#">
+        <span class="nav-icon">👥</span> Student List
+      </a>
+      <a class="nav-item" onclick="showSection('attendance')" href="#">
+        <span class="nav-icon">📋</span> Attendance Records
+      </a>
+    </div>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Subjects</div>
+      {% for s in subjects %}
+        <div class="nav-item" onclick="showSubject({{ s.subject_id }})">
+          <span class="nav-icon">📌</span> {{ s.course_code }}
+        </div>
+      {% endfor %}
+    </div>
+  </nav>
+
+  <!-- ── MAIN ── -->
+  <main class="main-content">
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-container" id="flash-box">
+          {% for cat, msg in messages %}
+            <div class="flash flash-{{ cat }}">{{ '✓' if cat == 'success' else '⚠' }} {{ msg }}</div>
+          {% endfor %}
+        </div>
+        <script>setTimeout(()=>{let b=document.getElementById('flash-box');if(b)b.style.opacity='0';},4000);</script>
+      {% endif %}
+    {% endwith %}
+
+    <!-- ─ OVERVIEW ─ -->
+    <div id="section-overview">
+      <div class="page-header">
+        <h1 class="page-title">Hello, <span>{{ session.name.split(' ')[0] }}</span> 👋</h1>
+        <p class="page-subtitle">Here's a summary of your assigned subjects.</p>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-num">{{ subjects|length }}</div>
+          <div class="stat-label">Assigned Subjects</div>
+        </div>
+        <div class="stat-card green">
+          <div class="stat-num">{{ students|length }}</div>
+          <div class="stat-label">Total Students</div>
+        </div>
+        {% set total_lec = namespace(val=0) %}
+        {% for st in attendance_stats %}
+          {% set total_lec.val = total_lec.val + st.total_lectures %}
+        {% endfor %}
+        <div class="stat-card orange">
+          <div class="stat-num">{{ total_lec.val }}</div>
+          <div class="stat-label">Total Lectures (Verified)</div>
+        </div>
+      </div>
+
+      <!-- Subject Cards -->
+      <div class="subject-grid">
+        {% for stat in attendance_stats %}
+          {% set subj = stat.subject %}
+          <div class="subject-card" onclick="showSubject({{ subj.subject_id }})" style="cursor:pointer">
+            <div class="subject-code">{{ subj.course_code }}</div>
+            <div class="subject-name">{{ subj.name }}</div>
+            <div style="display:flex; gap:20px; margin-top:8px">
+              <div>
+                <div class="stat-num" style="font-size:22px">{{ stat.total_lectures }}</div>
+                <div class="stat-label">Lectures Held</div>
+              </div>
+              <div>
+                <div class="stat-num" style="font-size:22px">{{ stat.records|length }}</div>
+                <div class="stat-label">Records</div>
+              </div>
+            </div>
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <div class="empty-icon">📭</div>
+            <div class="empty-text">No subjects assigned yet. Contact admin.</div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ─ STUDENT LIST ─ -->
+    <div id="section-students" style="display:none">
+      <div class="page-header">
+        <h1 class="page-title">Student <span>List</span></h1>
+        <p class="page-subtitle">All enrolled students.</p>
+      </div>
+      <div class="panel">
+        <div class="panel-head">
+          <span class="panel-title">👥 All Students</span>
+          <span class="text-muted" style="font-size:12px">{{ students|length }} students</span>
+        </div>
+        <div class="overflow-auto">
+          <table class="data-table">
+            <thead>
+              <tr><th>#</th><th>Name</th><th>Class</th></tr>
+            </thead>
+            <tbody>
+              {% for s in students %}
+              <tr>
+                <td class="text-muted">{{ loop.index }}</td>
+                <td>{{ s.name }}</td>
+                <td><span class="badge badge-verified">{{ s.class }}</span></td>
+              </tr>
+              {% else %}
+              <tr><td colspan="3">
+                <div class="empty-state"><div class="empty-text">No students found.</div></div>
+              </td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─ ATTENDANCE RECORDS ─ -->
+    <div id="section-attendance" style="display:none">
+      <div class="page-header">
+        <h1 class="page-title">Attendance <span>Records</span></h1>
+        <p class="page-subtitle">Attendance data for your subjects.</p>
+      </div>
+
+      {% for stat in attendance_stats %}
+        <div class="panel subject-panel" data-subj="{{ stat.subject.subject_id }}" style="display:none">
+          <div class="panel-head">
+            <span class="panel-title">
+              <span class="text-accent">{{ stat.subject.course_code }}</span> — {{ stat.subject.name }}
+            </span>
+            <span class="badge badge-verified">{{ stat.total_lectures }} lectures</span>
+          </div>
+          <div class="overflow-auto">
+            <table class="data-table">
+              <thead>
+                <tr><th>Student</th><th>Date</th><th>Time</th><th>Status</th><th>Verified</th></tr>
+              </thead>
+              <tbody>
+                {% for r in stat.records %}
+                <tr>
+                  <td>{{ r.student_name }}</td>
+                  <td class="text-muted">{{ r.date }}</td>
+                  <td class="text-muted">{{ r.time }}</td>
+                  <td>
+                    <span class="badge badge-{{ r.status }}">{{ r.status }}</span>
+                  </td>
+                  <td>
+                    {% if r.verified %}
+                      <span class="badge badge-verified">✓ Verified</span>
+                    {% else %}
+                      <span class="badge badge-pending">⏳ Pending</span>
+                    {% endif %}
+                  </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5">
+                  <div class="empty-state"><div class="empty-text">No records for this subject.</div></div>
+                </td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      {% endfor %}
+
+      {% if not attendance_stats %}
+        <div class="empty-state">
+          <div class="empty-icon">📋</div>
+          <div class="empty-text">No attendance records found.</div>
+        </div>
+      {% endif %}
+    </div>
+
+  </main>
+</div>
+
+<script>
+  const SECTIONS = ['overview', 'students', 'attendance'];
+
+  function showSection(name) {
+    SECTIONS.forEach(s => {
+      document.getElementById('section-' + s).style.display = (s === name) ? '' : 'none';
+    });
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    if (event && event.currentTarget) event.currentTarget.classList.add('active');
+
+    if (name === 'attendance') {
+      // Show all panels
+      document.querySelectorAll('.subject-panel').forEach(p => p.style.display = '');
+    }
+  }
+
+  function showSubject(subjectId) {
+    showSection('attendance');
+    // Hide all then show target
+    document.querySelectorAll('.subject-panel').forEach(p => {
+      p.style.display = (p.dataset.subj == subjectId) ? '' : 'none';
+    });
+  }
+</script>
+
+</body>
+</html>
