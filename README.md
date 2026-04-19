@@ -143,12 +143,6 @@ These are generated during runtime for security and privacy.
 
 ---
 
-## 📸 Screenshots
-
-*Add screenshots here*
-
----
-
 ## 🔮 Future Improvements
 
 * Liveness detection (anti-spoofing)
